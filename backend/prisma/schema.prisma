@@ -1,0 +1,193 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @db.VarChar(100)
+  email    String @db.VarChar(150)
+  password String @db.VarChar(150)
+
+  @@map("users")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model alerts {
+  alerts_id   Int      @id @default(autoincrement())
+  room_id     Int
+  title       String   @db.VarChar(150)
+  message     String
+  alert_level String   @db.VarChar(20)
+  recorded_at DateTime @default(now()) @db.Timestamp(6)
+  rooms       rooms    @relation(fields: [room_id], references: [room_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_alerts_room")
+
+  @@index([recorded_at], map: "idx_alerts_recorded_at")
+  @@index([room_id], map: "idx_alerts_room_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model products {
+  product_id     Int            @id @default(autoincrement())
+  product_number String         @unique @db.VarChar(50)
+  name           String         @db.VarChar(150)
+  description    String?
+  supplier       String?        @db.VarChar(150)
+  contact        String?        @db.VarChar(100)
+  height         Float?
+  weight         Float?
+  unit           String         @db.VarChar(20)
+  status         String         @default("available") @db.VarChar(50)
+  manufacturer   String?        @db.VarChar(150)
+  image_url      String?        @db.VarChar(255)
+  category       String?        @db.VarChar(100)
+  stock          stock[]
+  transactions   transactions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rooms {
+  room_id                                       Int               @id @default(autoincrement())
+  storage_id                                    Int
+  name_rooms                                    String            @db.VarChar(150)
+  status_rooms                                  String            @default("active") @db.VarChar(50)
+  capacity                                      Int
+  alerts                                        alerts[]
+  storage                                       storage           @relation(fields: [storage_id], references: [storage_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_rooms_storage")
+  sensor_identity                               sensor_identity[]
+  stock                                         stock[]
+  transactions_transactions_from_room_idTorooms transactions[]    @relation("transactions_from_room_idTorooms")
+  transactions_transactions_to_room_idTorooms   transactions[]    @relation("transactions_to_room_idTorooms")
+
+  @@index([storage_id], map: "idx_rooms_storage_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sensor_identity {
+  sensor_id      Int              @id @default(autoincrement())
+  room_id        Int
+  sensor_name    String           @db.VarChar(100)
+  is_active      Boolean          @default(true)
+  sensor_type    String           @db.VarChar(50)
+  unit           String           @db.VarChar(20)
+  rooms          rooms            @relation(fields: [room_id], references: [room_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sensor_identity_room")
+  sensor_logs    sensor_logs[]
+  sensor_summary sensor_summary[]
+
+  @@index([room_id], map: "idx_sensor_identity_room_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sensor_logs {
+  sensor_log_id   BigInt          @id @default(autoincrement())
+  sensor_id       Int
+  value           Float
+  recorded_at     DateTime        @default(now()) @db.Timestamp(6)
+  sensor_identity sensor_identity @relation(fields: [sensor_id], references: [sensor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sensor_logs_sensor")
+
+  @@index([recorded_at], map: "idx_sensor_logs_recorded_at")
+  @@index([sensor_id], map: "idx_sensor_logs_sensor_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sensor_summary {
+  summary_id      Int             @id @default(autoincrement())
+  sensor_id       Int
+  period_type     String          @db.VarChar(20)
+  avg_value       Float?
+  min_value       Float?
+  max_value       Float?
+  last_value      Float?
+  sensor_identity sensor_identity @relation(fields: [sensor_id], references: [sensor_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sensor_summary_sensor")
+
+  @@index([period_type], map: "idx_sensor_summary_period_type")
+  @@index([sensor_id], map: "idx_sensor_summary_sensor_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model stock {
+  stock_id   Int      @id @default(autoincrement())
+  room_id    Int
+  product_id Int
+  quantity   Int      @default(0)
+  products   products @relation(fields: [product_id], references: [product_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stock_product")
+  rooms      rooms    @relation(fields: [room_id], references: [room_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_stock_room")
+
+  @@unique([room_id, product_id], map: "uq_stock_room_product")
+  @@index([product_id], map: "idx_stock_product_id")
+  @@index([room_id], map: "idx_stock_room_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model storage {
+  storage_id      Int             @id @default(autoincrement())
+  name_storage    String          @db.VarChar(150)
+  address_storage String          @db.VarChar(255)
+  rooms           rooms[]
+  users_profile   users_profile[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model transactions {
+  transaction_id                         Int           @id @default(autoincrement())
+  user_id                                Int
+  product_id                             Int
+  from_room_id                           Int?
+  to_room_id                             Int?
+  type                                   String        @db.VarChar(50)
+  quantity                               Int
+  unit                                   String        @db.VarChar(20)
+  recorded_at                            DateTime      @default(now()) @db.Timestamp(6)
+  batch_number                           String?       @db.VarChar(50)
+  notes                                  String?
+  evidence_image_url                     String?       @db.VarChar(255)
+  rooms_transactions_from_room_idTorooms rooms?        @relation("transactions_from_room_idTorooms", fields: [from_room_id], references: [room_id], onUpdate: NoAction, map: "fk_transactions_from_room")
+  products                               products      @relation(fields: [product_id], references: [product_id], onUpdate: NoAction, map: "fk_transactions_product")
+  rooms_transactions_to_room_idTorooms   rooms?        @relation("transactions_to_room_idTorooms", fields: [to_room_id], references: [room_id], onUpdate: NoAction, map: "fk_transactions_to_room")
+  users_profile                          users_profile @relation(fields: [user_id], references: [user_id], onUpdate: NoAction, map: "fk_transactions_user")
+
+  @@index([from_room_id], map: "idx_transactions_from_room_id")
+  @@index([product_id], map: "idx_transactions_product_id")
+  @@index([recorded_at], map: "idx_transactions_recorded_at")
+  @@index([to_room_id], map: "idx_transactions_to_room_id")
+  @@index([user_id], map: "idx_transactions_user_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users_auth {
+  auth_id       Int           @id @default(autoincrement())
+  user_id       Int           @unique
+  email         String        @unique @db.VarChar(150)
+  password      String        @db.VarChar(255)
+  users_profile users_profile @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_users_auth_profile")
+
+  @@index([user_id], map: "idx_users_auth_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model users_profile {
+  user_id      Int            @id @default(autoincrement())
+  storage_id   Int
+  username     String         @db.VarChar(100)
+  role         String         @db.VarChar(50)
+  phone        String?        @db.VarChar(20)
+  photo        String?        @db.VarChar(255)
+  transactions transactions[]
+  users_auth   users_auth?
+  storage      storage        @relation(fields: [storage_id], references: [storage_id], onUpdate: NoAction, map: "fk_users_profile_storage")
+
+  @@index([storage_id], map: "idx_users_profile_storage_id")
+}
